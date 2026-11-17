@@ -1,0 +1,18 @@
+services:
+  napcat:
+    image: ghcr.io/napneko/nodenapcat:v4.18.41
+    container_name: napcat
+    restart: unless-stopped
+
+    environment:
+      MODE: ws
+      WEBUI_TOKEN: "76034093c932f54fecac46ab65e7e08092c7852c42fc2882"
+
+    ports:
+      - "127.0.0.1:6099:6099"
+      - "127.0.0.1:3001:3001"
+
+    volumes:
+      - ./data/qq:/app/.config/QQ
+      - ./data/config:/app/napcat/config
+      - ./data/plugins:/app/napcat/plugins

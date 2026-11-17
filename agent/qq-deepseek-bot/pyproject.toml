@@ -1,0 +1,36 @@
+[project]
+name = "qq-deepseek-bot"
+version = "0.2.0"
+description = "Extensible QQ bot with NapCat OneBot v11 and DeepSeek API"
+requires-python = ">=3.11,<3.15"
+dependencies = [
+    "pydantic-ai-slim[openai,mcp]>=1.0,<2",
+    "websockets>=13,<17",
+    "openai>=1.60,<3",
+    "python-dotenv>=1.0,<2",
+    "pymysql>=1.1,<2",
+    "nbtlib>=2.0.4",
+    "fastapi>=0.115,<1",
+    "uvicorn>=0.32,<1",
+    "python-multipart>=0.0.18,<1",
+    "pillow>=11,<13",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10"]
+
+[project.scripts]
+qq-deepseek-bot = "qq_deepseek.main:main"
+qq-building-api = "qq_deepseek.building.api:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/qq_deepseek"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.17.4",
+]

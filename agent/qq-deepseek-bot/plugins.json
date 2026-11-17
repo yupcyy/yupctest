@@ -1,0 +1,15 @@
+{
+  "plugins": [
+    {
+      "name": "deepseek-official-search",
+      "type": "python",
+      "factory": "qq_deepseek.plugins.deepseek_search:create_tools",
+      "scope": "public",
+      "enabled": true
+    }
+  ],
+  "server_operations": {
+    "uptime": ["/usr/bin/uptime"],
+    "disk_usage": ["/usr/bin/df", "-h", "/"]
+  }
+}

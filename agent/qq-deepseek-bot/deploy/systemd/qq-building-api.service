@@ -1,0 +1,20 @@
+[Unit]
+Description=DaFeiYu Building Preview API
+After=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/qq-agent/agent/qq-deepseek-bot
+EnvironmentFile=/opt/qq-agent/agent/qq-deepseek-bot/.env
+ExecStart=/opt/qq-agent/agent/qq-deepseek-bot/.venv/bin/qq-building-api
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/opt/qq-agent/agent/qq-deepseek-bot/data/building /opt/qq-agent/agent/qq-deepseek-bot/data/gomoku
+
+[Install]
+WantedBy=multi-user.target

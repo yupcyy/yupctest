@@ -1,0 +1,22 @@
+{
+  "task_id": "f02c4026804e4b1396ed97436d376a86",
+  "user_id": 2495427788,
+  "group_id": 1077893032,
+  "request": "上传：pigman_farm_no_air.nbt",
+  "status": "completed",
+  "created_at": 1794764049.7704408,
+  "updated_at": 1794764049.7704408,
+  "token": "qFnmjdOwMbE71CmYCS40RDaSSfACMMdb9MYJnE9HpME",
+  "expires_at": 1794850449.7704408,
+  "spec": null,
+  "error": "",
+  "size": [
+    73,
+    5,
+    73
+  ],
+  "block_count": 7000,
+  "notification_sent": true,
+  "source": "upload",
+  "web_username": ""
+}

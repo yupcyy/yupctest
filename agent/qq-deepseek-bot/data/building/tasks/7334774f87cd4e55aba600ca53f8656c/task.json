@@ -1,0 +1,22 @@
+{
+  "task_id": "7334774f87cd4e55aba600ca53f8656c",
+  "user_id": 2495427788,
+  "group_id": 1077893032,
+  "request": "上传：铁金安山合金机3.1[柠喵喵LemoMew 屿秋yuqiu2333]15×24×8，每小时铁1111块、金842块、安山合金4000块【mc1.21.1 create6.0.4】.nbt",
+  "status": "completed",
+  "created_at": 1794764245.32047,
+  "updated_at": 1794764245.32047,
+  "token": "7qBaGq6DSd4LmXWKJHrjc4a25B0XUNP0KY8AYO2QWYY",
+  "expires_at": 1794850645.32047,
+  "spec": null,
+  "error": "",
+  "size": [
+    16,
+    25,
+    10
+  ],
+  "block_count": 2487,
+  "notification_sent": true,
+  "source": "upload",
+  "web_username": ""
+}
