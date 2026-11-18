@@ -23,13 +23,34 @@ GIFTS = (("蛋糕",8),("白米饭",7),("小鱼",6),("鲜花",5),("礼物",5),("�
 class AffinityService:
     def __init__(self, store, master_qq_id):
         self.store, self.master_qq_id = store, master_qq_id
+        self._positive_claims = {}
+
+    def _claim_positive(self, user_id, kind):
+        # Claim synchronously before awaiting storage: concurrent keywords cannot
+        # farm unbounded relationship gains. Negative/abuse guards are unchanged.
+        import time
+        now = time.time()
+        day = int((now + 8 * 3600) // 86400)
+        self._positive_claims = {k: v for k, v in self._positive_claims.items() if k[0] == day}
+        key = (day, user_id, kind)
+        count, previous = self._positive_claims.get(key, (0, 0))
+        if count >= 10 or now - previous < 60 or len(self._positive_claims) >= 10000:
+            return False
+        self._positive_claims[key] = (count + 1, now)
+        return True
 
     async def score(self, user_id):
         default = 100 if user_id == self.master_qq_id else 0
         return await asyncio.to_thread(self.store.ensure_affinity, user_id, default)
 
     async def adjust_for_message(self, user_id, text):
-        delta = (2 if POSITIVE_RE.search(text) else 0) - (3 if NEGATIVE_RE.search(text) else 0)
+        from qq_deepseek.services.interaction_events import classify_interaction
+        kind = classify_interaction(text)
+        # Mood and relationship independently interpret the same classification;
+        # no mood value is read when deciding this persistent delta.
+        delta = {"gratitude": 2, "insult": -3}.get(kind, 0)
+        if delta > 0 and not self._claim_positive(user_id, "positive"):
+            return await self.score(user_id)
         if delta: return await asyncio.to_thread(self.store.adjust_affinity, user_id, delta,
                                                   100 if user_id == self.master_qq_id else 0)
         return await self.score(user_id)
@@ -84,6 +105,8 @@ class AffinityService:
                                            100 if user_id == self.master_qq_id else 0)
             return (gift[0],gift[1],score)
         if COMFORT_RE.search(text):
+            if not self._claim_positive(user_id, "comfort"):
+                return ("comfort", 0, await self.score(user_id))
             score=await asyncio.to_thread(self.store.adjust_affinity,user_id,3,
                                            100 if user_id == self.master_qq_id else 0)
             return ("comfort",3,score)
@@ -98,8 +121,8 @@ class AffinityService:
 
     @staticmethod
     def relationship_hint(score):
-        if score >= 70: return "非常亲近和信任；明显开心、温柔，可以多说1到3句，主动表达在意或被陪伴的满足感"
-        if score >= 20: return "比较喜欢对方；语气轻快友善，可以比普通回复稍多一句并自然流露好心情"
-        if score <= -70: return "非常不喜欢且不信任；明显不耐烦和不开心，只回必要的一句，可以冷淡拒绝额外要求，但不辱骂"
-        if score <= -20: return "对对方有意见；语气明显疏离、闷闷不乐或嫌麻烦，回复简短，不主动延伸话题"
+        if score >= 70: return "非常亲近和信任；交流亲近、尊重边界，可以多说1到3句，主动表达在意或被陪伴的满足感"
+        if score >= 20: return "比较喜欢对方；交流友善，可以比普通回复稍多一句，尊重对方意愿"
+        if score <= -70: return "非常不喜欢且不信任；保持距离和明确边界，只回必要的一句，可以冷淡拒绝额外要求，但不辱骂"
+        if score <= -20: return "对对方有意见；保持疏离和边界，回复简短，不主动延伸话题"
         return "关系普通；自然交流，不刻意热情也不刻意冷淡"

@@ -1,3 +1,4 @@
+from qq_deepseek.services.interaction_events import classify_interaction, EFFECTS
 """Independent, bounded short-term companion state; never stores message text."""
 from collections import OrderedDict, deque
 from dataclasses import dataclass
@@ -9,6 +10,8 @@ import time
 class Mood:
     value: float = 0.0
     updated: float = 0.0
+    arousal: float = .3
+    energy: float = .7
 
 
 class Companion:
@@ -19,7 +22,7 @@ class Companion:
 
     def snapshot(self, scope):
         mood = self.moods.get(scope)
-        return {"value": mood.value, "updated": mood.updated} if mood else None
+        return {"value": mood.value, "updated": mood.updated, "arousal": mood.arousal, "energy": mood.energy} if mood else None
 
     def restore(self, scope, payload):
         if not payload:
@@ -27,7 +30,11 @@ class Companion:
         value, updated = float(payload["value"]), float(payload["updated"])
         if not math.isfinite(value) or not math.isfinite(updated):
             return
-        self.moods[scope] = Mood(max(-1, min(1, value)), updated)
+        arousal, energy = float(payload.get("arousal", .3)), float(payload.get("energy", .7))
+        if not math.isfinite(arousal) or not math.isfinite(energy):
+            return
+        self.moods[scope] = Mood(max(-1, min(1, value)), updated,
+                                 max(0, min(1, arousal)), max(0, min(1, energy)))
         while len(self.moods) > 512:
             key, _ = self.moods.popitem(last=False)
             self.activity.pop(key, None)
@@ -35,11 +42,17 @@ class Companion:
     def observe(self, scope, user_id, text):
         now = self.clock()
         mood = self.moods.pop(scope, Mood(updated=now))
-        mood.value *= math.exp(-max(0, now - mood.updated) / 21600)
+        decay = math.exp(-max(0, now - mood.updated) / 21600)
+        mood.value *= decay
+        mood.arousal = .3 + (mood.arousal - .3) * decay
+        mood.energy = .7 + (mood.energy - .7) * decay
         # One bounded event per message, rather than overlapping word matches.
-        positive = any(w in text for w in ("谢谢", "抱抱", "喜欢你", "辛苦了"))
-        negative = any(w in text for w in ("讨厌你", "滚开", "去死"))
-        mood.value = max(-1, min(1, mood.value + .12 * positive - .18 * negative))
+        kind = classify_interaction(text)
+        negative = kind in {"insult", "coercion"}
+        delta = EFFECTS[kind][0] if kind else 0
+        mood.value = max(-1, min(1, mood.value + delta))
+        mood.arousal = max(0, min(1, mood.arousal + (.08 if kind else 0)))
+        mood.energy = max(0, min(1, mood.energy - (.03 if negative else 0)))
         mood.updated = now
         self.moods[scope] = mood
         window = self.activity.pop(scope, deque(maxlen=100))

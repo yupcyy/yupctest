@@ -6,6 +6,7 @@ class InMemoryHistory:
     def __init__(self, max_turns: int):
         self._store: dict[str, deque[dict[str, str]]] = {}
         self._max_items = 2 * max_turns
+        self._epochs = {}
 
     def get(self, key: str) -> list[dict[str, str]]:
         return list(self._store.get(key, ()))
@@ -15,5 +16,9 @@ class InMemoryHistory:
         bucket.append({"role": "user", "content": user})
         bucket.append({"role": "assistant", "content": assistant})
 
+    def epoch(self, key: str) -> int:
+        return self._epochs.get(key, 0)
+
     def clear(self, key: str) -> None:
         self._store.pop(key, None)
+        self._epochs[key] = self.epoch(key) + 1

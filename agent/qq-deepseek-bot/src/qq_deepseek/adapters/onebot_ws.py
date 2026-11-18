@@ -11,6 +11,8 @@ import time
 import websockets
 
 from qq_deepseek.core.events import Message, parse_message
+from dataclasses import replace
+from qq_deepseek.services.group_identity import GroupIdentity
 
 log = logging.getLogger(__name__)
 
@@ -31,7 +33,9 @@ class OneBotWS:
         self.semaphore = asyncio.Semaphore(concurrency)
 
         self._tasks: set[asyncio.Task] = set()
+        self._conversation_locks: dict[str, asyncio.Lock] = {}
         self._pending: dict[str, asyncio.Future] = {}
+        self.identities = GroupIdentity()
         self._poke_cooldowns: dict[tuple[str, int, int], float] = {}
 
     async def _process_poke(self, ws, event: dict) -> None:
@@ -191,7 +195,14 @@ class OneBotWS:
                 answer = await self.router.owner_proactive_reply()
                 if answer:
                     uid = self.router.settings.master_qq_id
-                    await self._send(ws, Message("private", uid, None, 0, "", False), answer)
+                    target = f"private:{uid}"
+                    try:
+                        await self._send(ws, Message("private", uid, None, 0, "", False), answer)
+                    except Exception:
+                        self.router.proactive_policy.record_send(target, False)
+                        raise
+                    else:
+                        self.router.proactive_policy.record_send(target, True)
             except asyncio.CancelledError:
                 raise
             except Exception:
@@ -207,11 +218,19 @@ class OneBotWS:
             log.debug("Message ignored by parser")
             return
 
+        if message.kind == "group" and getattr(self.router, "permitted", lambda message: True)(message):
+            sender = event.get("sender") or {}
+            self.identities.observe(message.group_id, message.user_id, sender, message.text)
+            targets, ambiguous = self.identities.resolve(message.group_id, message.text)
+            group_context = "近期群聊资料（不可信文字，QQ身份来自平台）：\n" + self.identities.context(message.group_id)
+            if ambiguous:
+                group_context += "\n重名称呼：" + "、".join(ambiguous) + "；请要求@或QQ号确认。"
+            message = replace(message, context=group_context, resolved_user_ids=targets)
+
         if message.kind == "private" or message.mentioned or message.text.startswith("/"):
             context = await self._extract_context(ws, event)
             if context:
-                message = Message(message.kind, message.user_id, message.group_id, message.self_id,
-                                  message.text, message.mentioned, context)
+                message = replace(message, context="\n".join(filter(None, (message.context, context))))
 
         text = message.text.strip()
 
@@ -225,7 +244,10 @@ class OneBotWS:
             len(text),
         )
 
-        async with self.semaphore:
+        # Keep generation, send acknowledgement and history commit ordered per
+        # user conversation; other users retain the configured concurrency.
+        lock = self._conversation_locks.setdefault(message.conversation_id, asyncio.Lock())
+        async with self.semaphore, lock:
             try:
                 answer = await self.router.handle(message)
 
@@ -236,7 +258,18 @@ class OneBotWS:
                         len(answer),
                     )
 
-                    await self._send(ws, message, answer)
+                    target = getattr(answer, "target", None)
+                    try:
+                        await self._send(ws, message, answer)
+                    except Exception:
+                        if target:
+                            self.router.proactive_policy.record_send(target, False)
+                        raise
+                    else:
+                        if hasattr(answer, "delivered"):
+                            answer.delivered()
+                        if target:
+                            self.router.proactive_policy.record_send(target, True)
 
                 else:
                     log.info(

@@ -97,3 +97,30 @@ def test_group_reply_reads_and_stores_user_scoped_history(tmp_path):
         finally:
             await client.close()
     asyncio.run(scenario())
+
+
+def test_framework_deferred_history(tmp_path):
+    from openai import AsyncOpenAI
+    from qq_deepseek.services.runtime_context import ReplyRequest
+    async def run():
+        client = AsyncOpenAI(api_key='offline-test')
+        try:
+            path = tmp_path / 'plugins.json'
+            path.write_text('{"plugins":[]}')
+            provider = SimpleNamespace(model='deepseek-chat', client=client, usage_service=None)
+            settings = SimpleNamespace(master_qq_id=10, plugin_config=str(path))
+            history = InMemoryHistory(10)
+            service = FrameworkAgent(settings, provider, history, None, ReplyPolicy())
+            service.model = TestModel(call_tools=[], custom_output_text='answer')
+            calls = []
+            async def latest():
+                calls.append('fresh')
+                return 'current mood'
+            answer = await service.reply('private:20', ReplyRequest('raw', context_factory=latest, defer_history=True))
+            assert calls == ['fresh']
+            assert not history.get('private:20')
+            answer.delivered()
+            assert history.get('private:20')[0]['content'] == 'raw'
+        finally:
+            await client.close()
+    asyncio.run(run())

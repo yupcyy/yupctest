@@ -32,11 +32,17 @@ def test_group_trigger_and_history():
     async def scenario():
         assert await router.handle(parse_message(event(at=False))) is None
         m = parse_message(event())
-        assert await router.handle(m) == "模拟回答"
-        assert await router.handle(m) == "模拟回答"
+        answer = await router.handle(m)
+        assert answer == "模拟回答"
+        answer.delivered()
+        answer = await router.handle(m)
+        assert answer == "模拟回答"
+        answer.delivered()
         assert len(provider.calls[1]) == 4
         assert await router.handle(parse_message(event(text="/reset"))) == "当前对话上下文已清空。"
-        assert await router.handle(m) == "模拟回答"
+        answer = await router.handle(m)
+        assert answer == "模拟回答"
+        answer.delivered()
         assert len(provider.calls[2]) == 2
     asyncio.run(scenario())
 

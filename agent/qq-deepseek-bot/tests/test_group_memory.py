@@ -23,7 +23,8 @@ def test_group_context_is_bounded_isolated_and_survives_restart(tmp_path):
     store.close()
 
 
-def test_proactive_reply_obeys_permissions_and_three_unanswered_cooldown(tmp_path):
+def test_proactive_reply_obeys_permissions_and_three_unanswered_cooldown(tmp_path, monkeypatch):
+    monkeypatch.setattr("qq_deepseek.core.router.time.time", lambda: 3600)
     import asyncio
     from types import SimpleNamespace
     from qq_deepseek.core.events import Message

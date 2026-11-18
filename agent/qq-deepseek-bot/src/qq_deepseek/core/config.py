@@ -49,7 +49,7 @@ class Settings:
     proactive_groups: frozenset[int] = frozenset()
     proactive_probability: float = 0.03
     proactive_cooldown: int = 1800
-    owner_proactive_cooldown: int = 43200
+    owner_proactive_cooldown: int = 14400
     voice_character: str = ""
     voice_source_group: int = 0
     proactive_timezone_offset: int = 8
@@ -60,6 +60,7 @@ class Settings:
     mc_rcon_port: int = 0
     mc_rcon_password: str = ""
     enable_owner_style_learning: bool = True
+    enable_self_profile: bool = False
     enable_companion: bool = False
     companion_persistence: bool = False
     companion_auto_journal: bool = False
@@ -112,7 +113,7 @@ class Settings:
             proactive_groups=parse_id_set(os.getenv("PROACTIVE_GROUPS", "")),
             proactive_probability=min(1.0, max(0.0, float(os.getenv("PROACTIVE_PROBABILITY", "0.03")))),
             proactive_cooldown=max(60, int(os.getenv("PROACTIVE_COOLDOWN", "1800"))),
-            owner_proactive_cooldown=max(3600, int(os.getenv("OWNER_PROACTIVE_COOLDOWN", "43200"))),
+            owner_proactive_cooldown=max(3600, int(os.getenv("OWNER_PROACTIVE_COOLDOWN", "14400"))),
             voice_character=os.getenv("NAPCAT_VOICE_CHARACTER", "").strip(),
             voice_source_group=parse_first_id(os.getenv("NAPCAT_VOICE_SOURCE_GROUP", "")),
             proactive_timezone_offset=max(-12, min(14, int(os.getenv("PROACTIVE_TIMEZONE_OFFSET", "8")))),
@@ -123,6 +124,7 @@ class Settings:
             mc_rcon_port=max(0, min(65535, int(os.getenv("MC_RCON_PORT", "0") or 0))),
             mc_rcon_password=os.getenv("MC_RCON_PASSWORD", ""),
             enable_owner_style_learning=bool_setting("ENABLE_OWNER_STYLE_LEARNING", True),
+            enable_self_profile=bool_setting("ENABLE_SELF_PROFILE", False),
             enable_companion=bool_setting("ENABLE_COMPANION", False),
             companion_persistence=bool_setting("COMPANION_PERSISTENCE", False),
             companion_auto_journal=bool_setting("COMPANION_AUTO_JOURNAL", False),

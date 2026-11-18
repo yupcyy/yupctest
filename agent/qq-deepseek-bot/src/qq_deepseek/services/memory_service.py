@@ -7,6 +7,7 @@ import asyncio
 from pathlib import Path
 
 from qq_deepseek.services.style import OwnerStyleService
+from qq_deepseek.services.memory_consolidation import CandidateQueue
 
 
 class MemoryService:
@@ -17,6 +18,7 @@ class MemoryService:
         enabled: bool = True,
         style_enabled: bool = True,
     ):
+        self.candidates = CandidateQueue()
         self.store = store
         self.master_qq_id = master_qq_id
         self.enabled = enabled
@@ -28,7 +30,7 @@ class MemoryService:
     async def command(self, message, text: str) -> str | None:
         command, _, arg = text.partition(" ")
 
-        if command not in {"/remember", "/memory", "/forget"}:
+        if command not in {"/remember", "/memory", "/forget", "/候选记忆"}:
             return None
 
         if message.kind != "private":
@@ -38,6 +40,23 @@ class MemoryService:
             return "长期记忆尚未启用。"
 
         user_id = message.user_id
+
+        if command == "/候选记忆":
+            import time
+            action, _, candidate_id = arg.strip().partition(" ")
+            if not action or action == "查看":
+                rows = self.candidates.for_user(user_id)
+                return "候选记忆（临时审核队列）：\n" + ("\n".join(
+                    f"{c.candidate_id} [{c.status}] {c.content}" for c in rows) or "暂无候选")
+            actions = {"批准": "approve", "驳回": "reject", "删除": "delete"}
+            if action not in actions or not candidate_id:
+                return "用法：/候选记忆 查看|批准 编号|驳回 编号|删除 编号"
+            try:
+                self.candidates.review(candidate_id, user_id=user_id, action=actions[action],
+                                       now=time.time(), private=True)
+            except (KeyError, PermissionError, ValueError):
+                return "候选不存在、已过期或不可操作。"
+            return "已更新审核状态。批准不会自动写入长期记忆；确认事实可用 /remember。"
 
         if command == "/remember":
             if not arg.strip():

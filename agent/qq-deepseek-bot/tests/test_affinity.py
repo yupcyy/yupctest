@@ -82,7 +82,9 @@ def test_low_affinity_keeps_authorized_tools(tmp_path, monkeypatch):
     message = Message("group", 20, 30, 99, "帮我查一下今天的消息", True)
     assert asyncio.run(router.handle(message)) == "正常回复"
     assert chat.calls[0][0] == "tools"
-    assert "明显疏离" in chat.calls[0][1] or "非常不喜欢" in chat.calls[0][1]
+    request = chat.calls[0][1]
+    assert str(request) == message.text
+    assert "非常不喜欢" in asyncio.run(request.context_factory())
     store.close()
 
 

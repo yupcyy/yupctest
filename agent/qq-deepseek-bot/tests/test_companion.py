@@ -24,3 +24,18 @@ def test_activity_expiry_and_bounded_storage():
         service.observe(str(i), i, "秘密文字")
     assert len(service.moods) == len(service.activity) == 512
     assert "秘密文字" not in repr(service.activity)
+
+
+def test_axes_restore_bounds_and_recovery():
+    from qq_deepseek.services.companion import Companion
+    now = [100.]
+    service = Companion(clock=lambda: now[0])
+    service.restore('private:1', {'value': -.8, 'updated': 100, 'arousal': 2, 'energy': -2})
+    assert service.snapshot('private:1')['arousal'] == 1
+    assert service.snapshot('private:1')['energy'] == 0
+    now[0] += 21600
+    service.observe('private:1', 1, '你好')
+    mood = service.snapshot('private:1')
+    assert -.8 < mood['value'] < 0
+    assert .3 < mood['arousal'] < 1
+    assert 0 < mood['energy'] < .7

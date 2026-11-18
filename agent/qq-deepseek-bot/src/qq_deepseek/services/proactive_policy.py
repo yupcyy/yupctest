@@ -8,6 +8,7 @@ class Budget:
     count: int = 0
     unanswered: int = 0
     next_at: float = 0
+    failures: int = 0
 
 
 class ProactivePolicy:
@@ -20,10 +21,16 @@ class ProactivePolicy:
         if target in self.targets:
             self.targets[target].unanswered = 0
             self.targets[target].next_at = 0
+            self.targets[target].failures = 0
+
+    def record_send(self, target, success):
+        state = self.targets.get(target)
+        if state:
+            state.failures = 0 if success else state.failures + 1
 
     def reserve(self, target, now, *, group=False):
         hour = int((now + 8 * 3600) // 3600 % 24)
-        if not (hour >= 7 or hour < 2):
+        if group and not (hour >= 7 or hour < 2):
             return False
         day = int((now + 8 * 3600) // 86400)
         if self.global_day != day:
@@ -33,6 +40,8 @@ class ProactivePolicy:
         state = self.targets.setdefault(target, Budget())
         if state.day != day:
             state.day, state.count = day, 0
+        if state.failures >= 3:
+            return False
         if group:
             try:
                 group_id = int(str(target).split(":", 1)[1])
@@ -49,6 +58,8 @@ class ProactivePolicy:
             state.next_at = now + 1800
             state.unanswered = 0
         elif not group:
-            state.next_at = now + 14400 * 2 ** (state.unanswered - 1)
+            if state.unanswered >= 2:
+                state.next_at = now + 14400
+                state.unanswered = 0
         self.global_count += 1
         return True
